@@ -1,0 +1,11 @@
+[Bb]in/
+[Oo]bj/
+[Ww]orking/
+[Ll]ib/
+*.npkg
+*.nuspec
+*.suo
+*.user
+_ReSharper.*
+*.ReSharper.user
+*.resharper.user
