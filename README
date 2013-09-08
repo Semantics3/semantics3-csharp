@@ -177,7 +177,7 @@ JObject apiResponse = products.get_results( "offers" );
 Console.Write(apiResponse.ToString());
 ```
 
-### VB .NET (or Classic ASP Application)
+### VB .NET
 
 Install this library through Nuget package manager using the instructions above. After installing the library in your project (Make sure your target framework is .NET 4 (or later) and NOT .NET 4(or later) Client Framework , can be changed in Properties->Compile->Advanced Compile Options->Target Framework), here's a sample VB .NET working code on using the API:
 
