@@ -162,7 +162,8 @@ For this example, we are going to look at a particular product that is sold by s
 ```c#
 // Build the query
 products.add( "offers", "sem3_id", "4znupRCkN6w2Q4Ke4s6sUC");
-products.add( "offers", "seller", ["LFleurs","Frys","Walmart"] );
+String[] sellers = new String[] {"LFleurs","Frys","Walmart"};
+products.add( "offers", "seller", sellers );
 products.add( "offers", "currency", "USD");
 products.add( "offers", "price", "gte", 30);
 products.add( "offers", "lastrecorded_at", "gte", 1348654600);
@@ -174,6 +175,37 @@ JObject apiResponse = products.get_results( "offers" );
 
 // View the results of the query
 Console.Write(apiResponse.ToString());
+```
+
+### VB .NET (or Classic ASP Application)
+
+Install this library through Nuget package manager using the instructions above. After installing the library in your project (Make sure your target framework is .NET 4 (or later) and NOT .NET 4(or later) Client Framework , can be changed in Properties->Compile->Advanced Compile Options->Target Framework), here's a sample VB .NET working code on using the API:
+
+```vb
+Imports Semantics3
+Imports Newtonsoft.Json
+Imports Newtonsoft.Json.Linq
+
+Module Module1
+
+    Sub Main()
+        Dim products As Products = New Products("API_KEY", "API_SECRET")
+        ' Build the query
+        products.products_field("cat_id", 4992)
+        products.products_field("brand", "Toshiba")
+        products.products_field("weight", "gte", 1000000)
+        products.products_field("weight", "lte", 1500000)
+        Dim constructedJson As String = products.get_query_json("products")
+        Console.Write(constructedJson)
+
+        ' Make the query
+        Dim apiResponse As JObject = products.get_products()
+        Console.Write(apiResponse.ToString())
+
+    End Sub
+
+End Module
+
 ```
 
 ## Contributing
