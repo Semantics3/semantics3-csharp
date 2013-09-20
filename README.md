@@ -177,9 +177,62 @@ JObject apiResponse = products.get_results( "offers" );
 Console.Write(apiResponse.ToString());
 ```
 
+### Parse JSON/Response Example
+
+The code below shows how to use the JObject (from Newtonsoft.Json library) value returned from the Semantics3 API to access the data fields interested in. The JSON response from the API is already parsed into the Newtonsoft.Json Object ready to be consumed easily in your target application.
+
+```c#
+
+// Query the API
+JObject hashResponse = products.get_products();
+
+if ((int)hashResponse["results_count"] > 0)
+{
+    JArray arrayProducts = (JArray)hashResponse["results"];
+
+    // For each product in the results
+    for (int i = 0; i < arrayProducts.Count; i++)
+    {
+        String productTitle = (String)arrayProducts[i]["name"];
+        List<String> images = new List<string>();
+        for (int j = 0; j < ((JArray)arrayProducts[i]["images"]).Count; j++)
+        {
+            images.Add((String)arrayProducts[i]["images"][j]);
+        }
+
+        // Pricing Information
+        JArray ecommerceStores = (JArray)arrayProducts[i]["sitedetails"];
+        for (int k = 0; k < ecommerceStores.Count; k++)
+        {
+            String skuInStore = (String)ecommerceStores[k]["sku"];
+            String productUrlInStore = (String)ecommerceStores[k]["url"];
+
+            // Latest offers from the ecommerceStore
+            for (int s = 0; s < ((JArray)ecommerceStores[k]["latestoffers"]).Count; s++)
+            {
+                String sellerName = (String)ecommerceStores[k]["latestoffers"][s]["seller"];
+                String price = (String)ecommerceStores[k]["latestoffers"][s]["price"];
+                String currency = (String)ecommerceStores[k]["latestoffers"][s]["currency"];
+                String availability = (String)ecommerceStores[k]["latestoffers"][s]["availability"];
+
+                // Preprocess and use in application ...
+
+            }
+            // Parsed offers
+        }
+        // Loop Ecommerse stores
+
+    }
+    // Loop each product in the api response
+
+}
+// If the above query resulted in some results
+
+```
+
 ### VB .NET
 
-Install this library through Nuget package manager using the instructions above. After installing the library in your project (Make sure your target framework is .NET 4 (or later) and NOT .NET 4(or later) Client Framework , can be changed in Properties->Compile->Advanced Compile Options->Target Framework), here's a sample VB .NET working code on using the API:
+Install this library through Nuget package manager using the instructions above. After installing the library in your project (Make sure your target framework is .NET 4 (or later) and NOT .NET 4(or later) Client Framework , can be changed in Properties->Compile->Advanced Compile Options->Target Framework), here's a sample VB .NET code on using the API. All of the above library functions work the same in VB as the Semantics3 API C# library is CLS Compliant.
 
 ```vb
 Imports Semantics3
