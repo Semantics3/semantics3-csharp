@@ -187,7 +187,7 @@ namespace Semantics3
 
             if (data == null)
             {                
-                query_result = JObject.Parse(fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None)));
+                query_result[endpoint] = JObject.Parse(fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None)));
             }
             else
             {
@@ -203,7 +203,7 @@ namespace Semantics3
                 // Data is Hash ref. Great just send it.
                 else if (dataType == jobjectType)
                 {                    
-                    query_result = JObject.Parse(fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None) ));
+                    query_result[endpoint] = JObject.Parse(fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None) ));
                 }
                 // Data is String
                 else if (dataType == strType)
@@ -219,11 +219,11 @@ namespace Semantics3
                     }
 
                     // Yup It's valid JSON. Just Send it.
-                    query_result = JObject.Parse( fetch(endpoint, data.ToString()) );
+                    query_result[endpoint] = JObject.Parse( fetch(endpoint, data.ToString()) );
                 }
             }
 
-            return query_result;
+            return (JObject)query_result[endpoint];
         }
 
         #region LocalHelperMethods
