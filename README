@@ -142,8 +142,8 @@ Let's now look at doing pagination, continuing from where we stopped previously.
 ```c#
 // Goto the next 'page'
 int page = 1;
-JObjects nextProducts = products.iterate_products();
-while( nextProductsRef != null ) 
+JObject nextProducts = products.iterate_products();
+while( nextProducts != null ) 
 {
     Console.Write("We are at page"); Console.Write(page);
     Console.Write(nextProducts.ToString());
