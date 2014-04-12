@@ -186,9 +186,9 @@ namespace Semantics3
         
         public JObject iterate_products()
         {
-            int limit = MAX_LIMIT;         
+            int limit = MAX_LIMIT;
 
-            if (query_result["total_results_count"] == null || (int)query_result["offset"] >= (int)query_result["total_results_count"])
+            if (query_result["products"]["total_results_count"] == null || (int)query_result["products"]["offset"] >= (int)query_result["products"]["total_results_count"])
             {
                 return null;
             }
