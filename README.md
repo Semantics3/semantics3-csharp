@@ -54,18 +54,18 @@ namespace MyApp
 }
 ```
 
-### First Query aka 'Hello World':
+### First Request aka 'Hello World':
 
 Let's run our first request! We are going to run a simple search fo the word "iPhone" as follows:
 
 ```c#
-// Build the query
+// Build the request
 products.products_field( "search", "iphone" );
 
-// Make the query
+// Make the request
 JObject hashProducts = products.get_products();
 
-// View the results of the query
+// View results of the request
 Console.Write(hashProducts.ToString());
 ```
 
@@ -79,13 +79,13 @@ Semantics3 Products API:
 The example in our "Hello World" script returns the first 10 results. In this example, we'll scroll to subsequent pages, beyond our initial request:
 
 ```c#
-// Build the query
+// Build the request
 products.products_field( "search", "iphone" );
 
-// Make the query
+// Make the request
 JObject hashProducts = products.get_products();
 
-// View the results of the query
+// View the results of the request
 Console.Write(hashProducts.ToString());
 
 // Goto the next 'page'
@@ -105,13 +105,13 @@ while( nextProducts != null )
 Get the picture? You can run URL queries as follows:
 
 ```c#
-// Build the query
+// Build the request
 products.products_field( "url", "http://www.walmart.com/ip/15833173" );
 
-// Make the query
+// Make the request
 JObject hashProducts = products.get_products();
 
-// View the results of the query
+// View the results of the request
 Console.Write(hashProducts.ToString());
 ```
 
@@ -120,14 +120,14 @@ Console.Write(hashProducts.ToString());
 Filter by price using the "lt" (less than) tag:
 
 ```c#
-// Build the query
+// Build the request
 products.products_field( "search", "iphone" );
 products.products_field( "price", "lt", 300 );
 
-// Make the query
+// Make the request
 JObject hashProducts = products.get_products();
 
-// View the results of the query
+// View the results of the request
 Console.Write(hashProducts.ToString());
 ```
 
@@ -136,13 +136,13 @@ Console.Write(hashProducts.ToString());
 To lookup details about a cat_id, run your request against the categories resource:
 
 ```c#
-// Build the query
+// Build the request
 products.categories_field( "cat_id", 4992 );
 
-// Make the query
+// Make the request
 JObject hashCategories = products.get_categories();
 
-// View the results of the query
+// View the results of the request
 Console.Write(hashCategories.ToString());
 ```
 
@@ -152,7 +152,7 @@ The code below shows how to use the JObject (from Newtonsoft.Json library) value
 
 ```c#
 
-// Query the API
+// Send request to the API
 JObject hashResponse = products.get_products();
 
 if ((int)hashResponse["results_count"] > 0)
@@ -195,7 +195,7 @@ if ((int)hashResponse["results_count"] > 0)
     // Loop each product in the api response
 
 }
-// If the above query resulted in some results
+// If the above request resulted in some results
 
 ```
 
@@ -212,12 +212,12 @@ Module Module1
 
     Sub Main()
         Dim products As Products = New Products("API_KEY", "API_SECRET")
-        ' Build the query
+        ' Build the request
         products.products_field("search", "iphone")
         Dim constructedJson As String = products.get_query_json("products")
         Console.Write(constructedJson)
 
-        ' Make the query
+        ' Make the request
         Dim apiResponse As JObject = products.get_products()
         Console.Write(apiResponse.ToString())
 
@@ -237,7 +237,7 @@ Use GitHub's standard fork/commit/pull-request cycle.  If you have any questions
 
 ## Copyright
 
-Copyright (c) 2014 Semantics3 Inc.
+Copyright (c) 2015 Semantics3 Inc.
 
 ## License
 
