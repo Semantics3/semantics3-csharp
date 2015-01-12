@@ -213,10 +213,7 @@ Module Module1
     Sub Main()
         Dim products As Products = New Products("API_KEY", "API_SECRET")
         ' Build the query
-        products.products_field("cat_id", 4992)
-        products.products_field("brand", "Toshiba")
-        products.products_field("weight", "gte", 1000000)
-        products.products_field("weight", "lte", 1500000)
+        products.products_field("search", "iphone")
         Dim constructedJson As String = products.get_query_json("products")
         Console.Write(constructedJson)
 
