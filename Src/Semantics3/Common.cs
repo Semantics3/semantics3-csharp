@@ -181,13 +181,13 @@ namespace Semantics3
         /// </summary> 
         /// <returns>void.</returns>
         
-        public JObject run_query(String endpoint, object data)
+        public JObject run_query(String endpoint, object data, String method = "GET")
         {
             checkEndpoint(endpoint);
 
             if (data == null)
             {                
-                query_result[endpoint] = JObject.Parse(fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None)));
+                query_result[endpoint] = JObject.Parse(fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None), method));
             }
             else
             {
@@ -203,7 +203,7 @@ namespace Semantics3
                 // Data is Hash ref. Great just send it.
                 else if (dataType == jobjectType)
                 {                    
-                    query_result[endpoint] = JObject.Parse(fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None) ));
+                    query_result[endpoint] = JObject.Parse(fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None), method));
                 }
                 // Data is String
                 else if (dataType == strType)
@@ -219,7 +219,7 @@ namespace Semantics3
                     }
 
                     // Yup It's valid JSON. Just Send it.
-                    query_result[endpoint] = JObject.Parse( fetch(endpoint, data.ToString()) );
+                    query_result[endpoint] = JObject.Parse( fetch(endpoint, data.ToString(), method) );
                 }
             }
 

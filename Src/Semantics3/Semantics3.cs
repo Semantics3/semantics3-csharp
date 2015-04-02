@@ -68,13 +68,35 @@ namespace Semantics3
             oauth_client = new OAuth2LeggedAuthenticator("AppName", consumerKey, consumerSecret);
         }
 
-        public String fetch(String endpoint, String parameters)
+        public String fetch(String endpoint, String parameters, String method)
         {
-            String url = api_base + endpoint + "?q=" + System.Web.HttpUtility.UrlEncode(parameters);
+            String url = api_base + endpoint;
+
+            // If method is GET, then send parameters as part of URL
+            if (method == "GET")
+            {
+                url = url + "?q=" + System.Web.HttpUtility.UrlEncode(parameters);
+            }
+
             _serviceProviderUri = new Uri(url);
 
             // HttpWebRequest request = GenerateRequest("application/json", "GET");
-            HttpWebRequest request = oauth_client.CreateHttpWebRequest("GET", _serviceProviderUri);
+            HttpWebRequest request = oauth_client.CreateHttpWebRequest(method, _serviceProviderUri);
+            
+            // If not GET request, send parameters as request content
+            if (method != "GET" && parameters.Length > 0)
+            {
+                var data = Encoding.ASCII.GetBytes(parameters);
+                request.Method = method;
+                request.ContentType = "application/json";
+                request.ContentLength = data.Length;
+
+                using (var stream = request.GetRequestStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
+            }
+
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
       
             // Get the stream associated with the response.
