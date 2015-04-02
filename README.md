@@ -235,6 +235,10 @@ You can use webhooks to get near-real-time price updates from Semantics3.
 You can register a webhook with Semantics3 by sending a POST request to `"webhooks"` endpoint.
 To verify that your URL is active, a GET request will be sent to your server with a `verification_code` parameter. Your server should respond with `verification_code` in the response body to complete the verification process.
 
+If your webhook server does not respond to as indicated in the Semantics3 Webhooks documentation, the run_query
+call will crash. You'll have to surround them in a try catch block.
+
+
 ```c#
 JObject addWebhookUriQuery = new JObject();
 addWebhookUriQuery["webhook_uri"] = "http://mydomain.com/myendpoint";
@@ -245,7 +249,7 @@ Console.Write(hashResponse.ToString());
 To fetch existing webhooks
 
 ```c#
-JObject hashResponse = products.run_query("webhooks", null, "GET");
+JObject hashResponse = products.run_query("webhooks", "{}", "GET");
 Console.Write(hashResponse.ToString());
 ```
 
@@ -254,7 +258,7 @@ To remove a webhook
 ```c#
 String webhookId = "7JcGN81u";
 String endpoint = "webhooks/" + webhookId;
-JObject hashResponse = products.run_query( endpoint, null, "DELETE" );
+JObject hashResponse = products.run_query( endpoint, "{}", "DELETE" );
 Console.Write(hashResponse.ToString());
 ```
 
@@ -286,7 +290,7 @@ To fetch all registered events for a give webhook
 String webhookId = "7JcGN81u";
 String endpoint = "webhooks/" + webhook_id + "/events";
 
-JObject hashResponse = products.run_query(endpoint, null, "GET");
+JObject hashResponse = products.run_query(endpoint, "{}", "GET");
 Console.Write(hashResponse.ToString());
 ```
 
