@@ -59,10 +59,17 @@ namespace Semantics3
         /// <param name="apiSecret">API Secret from semantics3.com</param>
         /// <returns>void.</returns>
         
-        public Semantics3(String consumerKey, String consumerSecret)
+        public Semantics3(String consumerKey, String consumerSecret, String _custom_api_base = "")
         {
             api_domain = "api.semantics3.com";
             api_base = "https://" + api_domain + "/v1/";
+
+            // If custom api base sent in, then use that
+            if (_custom_api_base != null && _custom_api_base != "")
+            {
+                api_base = _custom_api_base;
+            }
+
             api_key = consumerKey;
             api_secret = consumerSecret;
             oauth_client = new OAuth2LeggedAuthenticator("AppName", consumerKey, consumerSecret);
