@@ -267,19 +267,20 @@ Once you register a webhook, you can start adding events to it. Semantics3 serve
 To register events for a specific webhook send a POST request to the `"webhooks/{webhook_id}/events"` endpoint
 
 ```c#
-String createEventQueryString = '{
-    "type": "price.change",
-    "product": {
-        "sem3_id": "1QZC8wchX62eCYS2CACmka"
-    },
-    "constraints": {
-        "gte": 10,
-        "lte": 100
-    } 
-}';
-JObject createEventsQuery = JObject.Parse(createEventQueryString);
+JObject productSpec = new JObject();
+productSpec["sem3_id"] = "1QZC8wchX62eCYS2CACmka";
+
+JObject constraintsSpec = new JObject();
+constraintsSpec["gte"] = 10;
+constraintsSpec["lte"] = 100;
+
+JObject createEventsQuery = new JObject();
+createEventsQuery["type"] = "price.change";
+createEventsQuery["product"] = productSpec;
+createEventsQuery["constraints"] = constraintsSpec;
+
 String webhookId = "7JcGN81u";
-String endpoint = "webhooks/" + webhook_id + "/events";
+String endpoint = "webhooks/" + webhookId + "/events";
 JObject hashResponse = products.run_query( endpoint, createEventsQuery, "POST" );
 Console.Write(hashResponse.ToString());
 ```
@@ -288,7 +289,7 @@ To fetch all registered events for a give webhook
 
 ```c#
 String webhookId = "7JcGN81u";
-String endpoint = "webhooks/" + webhook_id + "/events";
+String endpoint = "webhooks/" + webhookId + "/events";
 
 JObject hashResponse = products.run_query(endpoint, "{}", "GET");
 Console.Write(hashResponse.ToString());
