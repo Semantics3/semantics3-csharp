@@ -98,7 +98,7 @@ namespace Semantics3
                 request.ContentType = "application/json";
                 request.ContentLength = data.Length;
 
-                using (var stream = request.GetRequestStream())
+                using (Stream stream = request.GetRequestStream())
                 {
                     stream.Write(data, 0, data.Length);
                 }

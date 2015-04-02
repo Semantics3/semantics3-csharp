@@ -54,18 +54,18 @@ namespace MyApp
 }
 ```
 
-### First Request aka 'Hello World':
+### First Query aka 'Hello World':
 
 Let's run our first request! We are going to run a simple search fo the word "iPhone" as follows:
 
 ```c#
-// Build the request
+// Build the query
 products.products_field( "search", "iphone" );
 
-// Make the request
+// Make the query
 JObject hashProducts = products.get_products();
 
-// View results of the request
+// View the results of the query
 Console.Write(hashProducts.ToString());
 ```
 
@@ -79,13 +79,13 @@ Semantics3 Products API:
 The example in our "Hello World" script returns the first 10 results. In this example, we'll scroll to subsequent pages, beyond our initial request:
 
 ```c#
-// Build the request
+// Build the query
 products.products_field( "search", "iphone" );
 
-// Make the request
+// Make the query
 JObject hashProducts = products.get_products();
 
-// View the results of the request
+// View the results of the query
 Console.Write(hashProducts.ToString());
 
 // Goto the next 'page'
@@ -105,13 +105,13 @@ while( nextProducts != null )
 Get the picture? You can run URL queries as follows:
 
 ```c#
-// Build the request
+// Build the query
 products.products_field( "url", "http://www.walmart.com/ip/15833173" );
 
-// Make the request
+// Make the query
 JObject hashProducts = products.get_products();
 
-// View the results of the request
+// View the results of the query
 Console.Write(hashProducts.ToString());
 ```
 
@@ -120,14 +120,14 @@ Console.Write(hashProducts.ToString());
 Filter by price using the "lt" (less than) tag:
 
 ```c#
-// Build the request
+// Build the query
 products.products_field( "search", "iphone" );
 products.products_field( "price", "lt", 300 );
 
-// Make the request
+// Make the query
 JObject hashProducts = products.get_products();
 
-// View the results of the request
+// View the results of the query
 Console.Write(hashProducts.ToString());
 ```
 
@@ -136,13 +136,13 @@ Console.Write(hashProducts.ToString());
 To lookup details about a cat_id, run your request against the categories resource:
 
 ```c#
-// Build the request
+// Build the query
 products.categories_field( "cat_id", 4992 );
 
-// Make the request
+// Make the query
 JObject hashCategories = products.get_categories();
 
-// View the results of the request
+// View the results of the query
 Console.Write(hashCategories.ToString());
 ```
 
@@ -152,7 +152,7 @@ The code below shows how to use the JObject (from Newtonsoft.Json library) value
 
 ```c#
 
-// Send request to the API
+// Query the API
 JObject hashResponse = products.get_products();
 
 if ((int)hashResponse["results_count"] > 0)
@@ -195,7 +195,7 @@ if ((int)hashResponse["results_count"] > 0)
     // Loop each product in the api response
 
 }
-// If the above request resulted in some results
+// If the above query resulted in some results
 
 ```
 
@@ -212,12 +212,12 @@ Module Module1
 
     Sub Main()
         Dim products As Products = New Products("API_KEY", "API_SECRET")
-        ' Build the request
+        ' Build the query
         products.products_field("search", "iphone")
         Dim constructedJson As String = products.get_query_json("products")
         Console.Write(constructedJson)
 
-        ' Make the request
+        ' Make the query
         Dim apiResponse As JObject = products.get_products()
         Console.Write(apiResponse.ToString())
 
@@ -226,6 +226,101 @@ Module Module1
 End Module
 
 ```
+
+## Webhooks
+You can use webhooks to get near-real-time price updates from Semantics3. 
+
+### Creating a webhook
+
+You can register a webhook with Semantics3 by sending a POST request to `"webhooks"` endpoint.
+To verify that your URL is active, a GET request will be sent to your server with a `verification_code` parameter. Your server should respond with `verification_code` in the response body to complete the verification process.
+
+```c#
+JObject addWebhookUriQuery = new JObject();
+addWebhookUriQuery["webhook_uri"] = "http://mydomain.com/myendpoint";
+JObject hashResponse = products.run_query("webhooks", addWebhookUriQuery, "POST");
+Console.Write(hashResponse.ToString());
+```
+
+To fetch existing webhooks
+
+```c#
+JObject hashResponse = products.run_query("webhooks", null, "GET");
+Console.Write(hashResponse.ToString());
+```
+
+To remove a webhook
+
+```c#
+String webhookId = "7JcGN81u";
+String endpoint = "webhooks/" + webhookId;
+JObject hashResponse = products.run_query( endpoint, null, "DELETE" );
+Console.Write(hashResponse.ToString());
+```
+
+### Registering events
+Once you register a webhook, you can start adding events to it. Semantics3 server will send you notifications when these events occur.
+To register events for a specific webhook send a POST request to the `"webhooks/{webhook_id}/events"` endpoint
+
+```c#
+String createEventQueryString = '{
+    "type": "price.change",
+    "product": {
+        "sem3_id": "1QZC8wchX62eCYS2CACmka"
+    },
+    "constraints": {
+        "gte": 10,
+        "lte": 100
+    } 
+}';
+JObject createEventsQuery = JObject.Parse(createEventQueryString);
+String webhookId = "7JcGN81u";
+String endpoint = "webhooks/" + webhook_id + "/events";
+JObject hashResponse = products.run_query( endpoint, createEventsQuery, "POST" );
+Console.Write(hashResponse.ToString());
+```
+
+To fetch all registered events for a give webhook
+
+```c#
+String webhookId = "7JcGN81u";
+String endpoint = "webhooks/" + webhook_id + "/events";
+
+JObject hashResponse = products.run_query(endpoint, null, "GET");
+Console.Write(hashResponse.ToString());
+```
+
+### Webhook Notifications
+
+Once you have created a webhook and registered events on it, notifications will be sent to your registered webhook URI via a POST request when the corresponding events occur. Make sure that your server can accept POST requests. Here is how a sample notification object looks like
+
+```javascript
+{
+    "type": "price.change",
+    "event_id": "XyZgOZ5q",
+    "notification_id": "X4jsdDsW",
+    "changes": [{
+        "site": "abc.com",
+        "url": "http://www.abc.com/def",
+        "previous_price": 45.50,
+        "current_price": 41.00
+    }, {
+        "site": "walmart.com",
+        "url": "http://www.walmart.com/ip/20671263",
+        "previous_price": 34.00,
+        "current_price": 42.00
+    }]
+}
+```
+
+### Additional utility methods
+
+| method        | Description           
+| ------------- |:-------------
+| `products.get_results_json()`     | returns the result json string from the previous query
+| `products.clear()`                | clears all the fields in the query
+| `products.run_query(endpoint, rawJson, method, callback)`  | You can use this method to send raw JSON string in the request
+
 
 ## Contributing
 
@@ -237,7 +332,7 @@ Use GitHub's standard fork/commit/pull-request cycle.  If you have any questions
 
 ## Copyright
 
-Copyright (c) 2015 Semantics3 Inc.
+Copyright (c) 2014 Semantics3 Inc.
 
 ## License
 
