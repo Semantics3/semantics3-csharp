@@ -130,7 +130,7 @@ namespace Semantics3
         public override void ApplyAuthenticationToRequest(HttpWebRequest request)
         {
             base.ApplyAuthenticationToRequest(request);
-            string userAgent = "Semantics3 C# Lib/1.0.0.18";
+            string userAgent = "Semantics3 C# Lib/1.0.0.23";
             string header = OAuthUtil.GenerateHeader(request.RequestUri, ConsumerKey, ConsumerSecret, null, null, request.Method);
             request.Headers.Add(header);
             request.UserAgent = userAgent;
