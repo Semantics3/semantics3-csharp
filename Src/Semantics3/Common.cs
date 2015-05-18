@@ -263,6 +263,10 @@ namespace Semantics3
                     {
                         dq[data[0]] = (String)data[1];
                     }
+                    else if (data[1].GetType() == typeof(JToken))
+                    {
+                        dq[data[0]] = (JToken)data[1];
+                    }
                 }
                 else
                 {
