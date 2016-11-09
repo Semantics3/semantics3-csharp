@@ -31,20 +31,17 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Web;
 using System.Net;
-using System.Linq;
+using System.Net.Http;
 using System.Text;
-using Google.GData.Client;
+using Semantics3.OAuth;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Semantics3
 {
     public class Semantics3
     {
-        private readonly String api_key;
-        private readonly String api_secret;
         private readonly String api_domain;
         private readonly String api_base;
         private Uri _serviceProviderUri;
@@ -57,83 +54,56 @@ namespace Semantics3
         /// </summary>
         /// <param name="apiKey">API Key from semantics3.com</param>
         /// <param name="apiSecret">API Secret from semantics3.com</param>
+        /// <param name="_custom_api_base">Override the base API url.</param>
         /// <returns>void.</returns>
-        
-        public Semantics3(String consumerKey, String consumerSecret, String _custom_api_base = "")
+        public Semantics3(String apiKey, String apiSecret, String _custom_api_base = "")
         {
             api_domain = "api.semantics3.com";
             api_base = "https://" + api_domain + "/v1/";
 
             // If custom api base sent in, then use that
-            if (_custom_api_base != null && _custom_api_base != "")
+            if (!string.IsNullOrEmpty(_custom_api_base))
             {
                 api_base = _custom_api_base;
             }
 
-            api_key = consumerKey;
-            api_secret = consumerSecret;
-            oauth_client = new OAuth2LeggedAuthenticator("AppName", consumerKey, consumerSecret);
+            oauth_client = new OAuth2LeggedAuthenticator(apiKey, apiSecret);
         }
 
-        public String fetch(String endpoint, String parameters, String method)
+        public async Task<string> fetch(String endpoint, String parameters, HttpMethod method)
         {
             String url = api_base + endpoint;
 
             // If method is GET, then send parameters as part of URL
-            if (method == "GET")
+            if (method == HttpMethod.Get)
             {
-                url = url + "?q=" + System.Web.HttpUtility.UrlEncode(parameters);
+#if NET40
+                var encodedParameters = Uri.EscapeUriString(parameters);
+#else
+                var encodedParameters = WebUtility.UrlEncode(parameters);
+#endif
+                url = url + "?q=" + encodedParameters;
             }
 
             _serviceProviderUri = new Uri(url);
 
-            // HttpWebRequest request = GenerateRequest("application/json", "GET");
-            HttpWebRequest request = oauth_client.CreateHttpWebRequest(method, _serviceProviderUri);
-            
-            // If not GET request, send parameters as request content
-            if (method != "GET" && parameters.Length > 0)
-            {
-                var data = Encoding.ASCII.GetBytes(parameters);
-                request.Method = method;
-                request.ContentType = "application/json";
-                request.ContentLength = data.Length;
+            var request = oauth_client.CreateHttpWebRequest(method, _serviceProviderUri);
 
-                using (Stream stream = request.GetRequestStream())
-                {
-                    stream.Write(data, 0, data.Length);
-                }
+            // If not GET request, send parameters as request content
+            if (method != HttpMethod.Get && parameters.Length > 0)
+            {
+                var content = new StringContent(JsonConvert.SerializeObject(parameters), Encoding.UTF8,
+                    "application/json");
+                request.Content = content;
             }
 
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-      
-            // Get the stream associated with the response.
-            Stream receiveStream = response.GetResponseStream();
-
-            // Pipes the stream to a higher level stream reader with the required encoding format. 
-            StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
-
-            String result = readStream.ReadToEnd();
-            response.Close();
-            readStream.Close();
-
-            return result;
-        }
-    }
-
-    class OAuth2LeggedAuthenticator : OAuthAuthenticator
-    {
-        public OAuth2LeggedAuthenticator(string applicationName, string consumerKey, string consumerSecret)
-            : base(applicationName, consumerKey, consumerSecret)
-        {
-        }
-
-        public override void ApplyAuthenticationToRequest(HttpWebRequest request)
-        {
-            base.ApplyAuthenticationToRequest(request);
-            string userAgent = "Semantics3 C# Lib/1.0.0.24";
-            string header = OAuthUtil.GenerateHeader(request.RequestUri, ConsumerKey, ConsumerSecret, null, null, request.Method);
-            request.Headers.Add(header);
-            request.UserAgent = userAgent;
+            using (var httpClient = new HttpClient())
+            {
+                using (var response = await httpClient.SendAsync(request).ConfigureAwait(false))
+                {
+                    return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+            }
         }
     }
 }

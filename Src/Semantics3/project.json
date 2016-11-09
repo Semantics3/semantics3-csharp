@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0-*",
+  "title": "Semantics3",
+  "description": "C# Client Library for querying Semantics3 APIs",
+  "dependencies": {
+    "Newtonsoft.Json": "9.0.1",
+    "NETStandard.Library": "1.6.0"
+  },
+
+  "buildOptions": {
+    "warningsAsErrors": true,
+    "emitEntryPoint": false
+  },
+
+  "frameworks": {
+    "netstandard1.6": {
+      "imports": "dnxcore50"
+    },
+    "net45": {
+    },
+    "net40": {
+      "dependencies": {
+        "Microsoft.Bcl.Async": "1.0.168",
+        "Microsoft.Net.Http": "2.0.20710"
+      }
+    }
+  }
+}

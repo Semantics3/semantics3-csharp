@@ -31,9 +31,8 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -53,7 +52,6 @@ namespace Semantics3
         /// <param name="apiKey">API Key from semantics3.com</param>
         /// <param name="apiSecret">API Secret from semantics3.com</param>
         /// <returns>void.</returns>
-       
         public Common(String apiKey, String apiSecret) : base(apiKey, apiSecret)
         {
             data_query = new JObject();
@@ -69,9 +67,9 @@ namespace Semantics3
         /// anyEndpoint.add("products","weight","gte",1000000);
         /// anyEndpoint.add("products","weight","lt",1500000);
         /// </summary>
+        /// <param name="endpoint">The endpoint to query.</param>
         /// <param name="data">Construct complex queries by sending parameters and values.</param>
         /// <returns>void.</returns>
-        
         public void add(String endpoint, params object[] data)
         {
             checkEndpoint(endpoint);
@@ -85,12 +83,11 @@ namespace Semantics3
         /// Removes the 'gte' attribute and it's associated weight
         /// anyEndpoint.remove( 'products', 'weight', 'gte' );
         /// Removes the entire 'brand' field from the query
-        /// $sem3->remove( 'products', 'brand' );     
+        /// $sem3->remove( 'products', 'brand' );
         /// </summary>
         /// <param name="endpoint">Semantics3 API Endpoint to query to.</param>
         /// <param name="data">Parameters to remove from the query.</param>
         /// <returns>void.</returns>
-        
         public void remove(String endpoint, params object[] data)
         {
             checkEndpoint(endpoint);
@@ -101,11 +98,10 @@ namespace Semantics3
         /// Returns the JObject hash object of the constructed query for the specified endpoint.
         /// get_query( ENDPOINT )
         /// Example:
-        /// JObject hashQuery = anyEndpoint.get_query('products');   
+        /// JObject hashQuery = anyEndpoint.get_query('products');
         /// </summary>
         /// <param name="endpoint">Semantics3 API Endpoint.</param>
         /// <returns>A JObject Class object (from Newtonsoft.Json Lib) consisting of the query parameters (key, value).</returns>
-        
         public JObject get_query(String endpoint)
         {
             checkEndpoint(endpoint);
@@ -116,11 +112,10 @@ namespace Semantics3
         /// Returns the JSON string of the constructed query for the specified endpoint.
         /// get_query_json( ENDPOINT )
         /// Example:
-        /// String jsonQuery = anyEndpoint.get_query_json('products');   
+        /// String jsonQuery = anyEndpoint.get_query_json('products');
         /// </summary>
-        /// <param name="endpoint">Semantics3 API Endpoint.</param>        
+        /// <param name="endpoint">Semantics3 API Endpoint.</param>
         /// <returns>String containing the JSON encoded query.</returns>
-         
         public String get_query_json(String endpoint)
         {
             checkEndpoint(endpoint);
@@ -131,10 +126,9 @@ namespace Semantics3
         /// Returns the hash reference of the results from any previously executed query.
         /// get_results( endpoint )
         /// Example:
-        /// JObject hashResults = anyEndpoint.get_results("products");   
-        /// </summary> 
+        /// JObject hashResults = anyEndpoint.get_results("products");
+        /// </summary>
         /// <returns>A JObject Class object (from Newtonsoft.Json Lib) consisting of parsed JSON response from previous query.</returns>
-        
         public JObject get_results(String endpoint)
         {
             return (JObject)query_result[endpoint];
@@ -144,10 +138,9 @@ namespace Semantics3
         /// Returns the JSON string of the results from any previously executed query.
         /// get_results_json( endpoint )
         /// Example:
-        /// String jsonResults = anyEndpoint.get_results_json("products");   
-        /// </summary> 
+        /// String jsonResults = anyEndpoint.get_results_json("products");
+        /// </summary>
         /// <returns>String consisting of JSON response from previous query.</returns>
-        
         public String get_results_json(String endpoint)
         {
             return query_result[endpoint].ToString(Newtonsoft.Json.Formatting.None);
@@ -157,10 +150,9 @@ namespace Semantics3
         /// Clears previously constructed parameters for each of the endpoints and also the results buffer.
         /// clear( )
         /// Example:
-        /// anyEndpoint.clear();   
-        /// </summary> 
+        /// anyEndpoint.clear();
+        /// </summary>
         /// <returns>void.</returns>
-        
         public void clear()
         {
             data_query = new JObject();
@@ -169,7 +161,7 @@ namespace Semantics3
 
         /// <summary>
         /// Execute query of any endpoint based on the previously constructed query parameters or alternatively
-        /// execute query of any endpoint based on the hash reference or JSON string of the query you wish to 
+        /// execute query of any endpoint based on the hash reference or JSON string of the query you wish to
         /// supply. Returns a hash reference of the executed query.
         /// Example:
         /// Just query based on constructed query using methods add() or endpoint-specific methods like products_field(), etc..
@@ -178,16 +170,17 @@ namespace Semantics3
         /// JObject hashResults = run_query( 'products', (JObject)queryParams );
         /// Pass in a JSON string
         /// JObject hashResults = run_query( 'products', "{\"cat_id\":4992,\"brand\":\"Toshiba\",\"weight\":{\"gte\":1000000,\"lt\":1500000}" );
-        /// </summary> 
+        /// </summary>
         /// <returns>void.</returns>
-        
-        public JObject run_query(String endpoint, object data, String method = "GET")
+        public JObject run_query(String endpoint, object data, HttpMethod method)
         {
             checkEndpoint(endpoint);
 
             if (data == null)
-            {                
-                query_result[endpoint] = JObject.Parse(fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None), method));
+            {
+                var result =
+                    fetch(endpoint, data_query[endpoint].ToString(Newtonsoft.Json.Formatting.None), method).Result;
+                query_result[endpoint] = JObject.Parse(result);
             }
             else
             {
@@ -197,29 +190,35 @@ namespace Semantics3
                 if (dataType != strType && dataType != jobjectType)
                 {
                     throw new Error("Invalid Data",
-                                    "Invaid data was sent. Reference Type: - " + data.GetType(),
-                                    "data");
+                        "Invaid data was sent. Reference Type: - " + data.GetType(),
+                        "data");
                 }
                 // Data is Hash ref. Great just send it.
                 else if (dataType == jobjectType)
-                {                    
-                    query_result[endpoint] = JObject.Parse(fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None), method));
+                {
+                    var result =
+                        fetch(endpoint, ((JObject)data).ToString(Newtonsoft.Json.Formatting.None), method).Result;
+                    query_result[endpoint] = JObject.Parse(result);
                 }
                 // Data is String
                 else if (dataType == strType)
                 {
                     // Check if it is valid JSON
-                    try { JObject jb = JObject.Parse(data.ToString()); }
+                    try
+                    {
+                        JObject jb = JObject.Parse(data.ToString());
+                    }
                     // Nope. Throw Error
                     catch (JsonReaderException e)
                     {
-                        throw new Error("Invalid JSON: " + e.Message, 
-                                        "Invalid JSON was sent.", 
-                                        "data");
+                        throw new Error("Invalid JSON: " + e.Message,
+                            "Invalid JSON was sent.",
+                            "data");
                     }
 
                     // Yup It's valid JSON. Just Send it.
-                    query_result[endpoint] = JObject.Parse( fetch(endpoint, data.ToString(), method) );
+                    var result = fetch(endpoint, data.ToString(), method).Result;
+                    query_result[endpoint] = JObject.Parse(result);
                 }
             }
 
@@ -243,8 +242,8 @@ namespace Semantics3
                 else
                 {
                     dq[data[0]] = (JToken)editHash(op,
-                                                   (JObject)dq[data[0]],
-                                                   data.Skip(1).Take(data.Length - 1).Cast<object>().ToArray());
+                        (JObject)dq[data[0]],
+                        data.Skip(1).Take(data.Length - 1).Cast<object>().ToArray());
                     if (dq[data[0]].Count() == 0)
                     {
                         dq.Remove((String)data[0]);
@@ -271,8 +270,8 @@ namespace Semantics3
                 else
                 {
                     dq[data[0]] = (JToken)editHash(op,
-                                                   (JObject)dq[data[0]],
-                                                   data.Skip(1).Take(data.Length - 1).Cast<object>().ToArray());
+                        (JObject)dq[data[0]],
+                        data.Skip(1).Take(data.Length - 1).Cast<object>().ToArray());
                 }
             }
             return dq;
@@ -283,8 +282,8 @@ namespace Semantics3
             if (endpoint == null || endpoint == "")
             {
                 throw new Error("Undefined Endpoint",
-                                "Query Endpoint was not defined. You need to provide one. Eg: products",
-                                "endpoint");
+                    "Query Endpoint was not defined. You need to provide one. Eg: products",
+                    "endpoint");
             }
         }
 

@@ -1,0 +1,683 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Semantics3.OAuth
+{
+    /// <summary>
+    /// The original OAuth code from <see url="http://eran.sandler.co.il/"/>, hosted at <see url="http://oauth.net"/>
+    /// Modified only to change namespace.
+    /// Written by Eran Sandler (<see url="http://eran.sandler.co.il"/>)
+    /// Edited by Claudio Cherubino and Alain Vongsouvanh
+    /// Further editited by Sergey Maskalik
+    /// </summary>
+    internal class OAuthBase
+    {
+        public static string OAuthVersion = "1.0";
+        public static string OAuthParameterPrefix = "oauth_";
+
+        //
+        // List of known and used oauth parameters' names
+        //
+        public static string OAuthConsumerKeyKey = "oauth_consumer_key";
+        public static string OAuthConsumerSecretKey = "oauth_consumer_secret";
+        public static string OAuthCallbackKey = "oauth_callback";
+        public static string OAuthVersionKey = "oauth_version";
+        public static string OAuthSignatureMethodKey = "oauth_signature_method";
+        public static string OAuthSignatureKey = "oauth_signature";
+        public static string OAuthTimestampKey = "oauth_timestamp";
+        public static string OAuthNonceKey = "oauth_nonce";
+        public static string OAuthTokenKey = "oauth_token";
+        public static string OAuthTokenSecretKey = "oauth_token_secret";
+        public static string OAuthVerifierKey = "oauth_verifier";
+        public static string OAuthScopeKey = "scope";
+
+        //
+        // List of known and used OAuth 2.0 parameters' names
+        //
+        public static string OAuth2ClientId = "client_id";
+        public static string OAuth2ClientSecret = "client_secret";
+        public static string OAuth2RedirectUri = "redirect_uri";
+        public static string OAuth2AccessType = "access_type";
+        public static string OAuth2GrantType = "grant_type";
+        public static string OAuth2ResponseType = "response_type";
+        public static string OAuth2State = "state";
+        public static string OAuth2ApprovalPrompt = "approval_prompt";
+        public static string OAuth2AccessCode = "code";
+        public static string OAuth2AccessToken = "access_token";
+        public static string OAuth2TokenType = "token_type";
+        public static string OAuth2RefreshToken = "refresh_token";
+        public static string OAuth2ExpiresIn = "expires_in";
+
+        public const string HMACSHA1SignatureType = "HMAC-SHA1";
+        public const string PlainTextSignatureType = "PLAINTEXT";
+        public const string RSASHA1SignatureType = "RSA-SHA1";
+
+        protected static string unreservedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~";
+
+        /// <summary>
+        /// Helper function to compute a hash value
+        /// </summary>
+        /// <param name="hashAlgorithm">The hashing algorithm used. If that algorithm needs some initialization,
+        /// like HMAC and its derivatives, they should be initialized prior to passing it to this function</param>
+        /// <param name="data">The data to hash</param>
+        /// <returns>a Base64 string of the hash value</returns>
+        private static string ComputeHash(HashAlgorithm hashAlgorithm, string data)
+        {
+            if (hashAlgorithm == null)
+            {
+                throw new ArgumentNullException("hashAlgorithm");
+            }
+
+            if (string.IsNullOrEmpty(data))
+            {
+                throw new ArgumentNullException("data");
+            }
+
+            byte[] dataBuffer = System.Text.Encoding.ASCII.GetBytes(data);
+            byte[] hashBytes = hashAlgorithm.ComputeHash(dataBuffer);
+
+            return Convert.ToBase64String(hashBytes);
+        }
+
+        /// <summary>
+        /// Overloaded version of GetQueryParameters to work without a IDictionary parameter
+        /// </summary>
+        /// <param name="querystring">The query string part of the Url</param>
+        /// <returns>A sorted dictionary with string keys and values representing the query parameters</returns>
+        public static SortedDictionary<string, string> GetQueryParameters(string querystring)
+        {
+            return GetQueryParameters(querystring, null);
+        }
+
+        /// <summary>
+        /// Internal function to parse query string parameters and merge them with an existing dictionary
+        /// </summary>
+        /// <param name="querystring">The query string part of the Url</param>
+        /// <param name="dict">The dictionary to be merged with the query string parameters</param>
+        /// <returns>A sorted dictionary with string keys and values representing the query parameters merged with
+        /// the values taken from the dictionary passed as parameter</returns>
+        public static SortedDictionary<string, string> GetQueryParameters(string querystring, IDictionary<string, string> dict)
+        {
+            if (querystring.StartsWith("?"))
+            {
+                querystring = querystring.Remove(0, 1);
+            }
+
+            SortedDictionary<string, string> result = (dict == null) ? new SortedDictionary<string, string>() : new SortedDictionary<string, string>(dict);
+
+            if (!string.IsNullOrEmpty(querystring))
+            {
+                string[] p = querystring.Split('&');
+                foreach (string s in p)
+                {
+                    if (!string.IsNullOrEmpty(s))
+                    {
+                        if (s.IndexOf('=') > -1)
+                        {
+                            string[] temp = s.Split('=');
+                            // now temp[1], the value, might contain encoded data, that would be double encoded later.
+                            // also it MIGHT contain encoding of the lowercase kind, which throws OAUTH off
+                            // the same is true for the name
+                            string name = UrlDecode(temp[0]);
+                            string value = UrlDecode(temp[1]);
+                            if (result.ContainsKey(name))
+                            {
+                                result[name] = value;
+                            }
+                            else
+                            {
+                                result.Add(name, value);
+                            }
+                        }
+                        else
+                        {
+                            result.Add(UrlDecode(s), string.Empty);
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// All parameter names and values are escaped using the [RFC3986]
+        /// percent-encoding (%xx) mechanism. Characters not in the unreserved character
+        /// MUST be encoded. Characters in the unreserved character set MUST NOT be encoded.
+        /// Hexadecimal characters in encodings MUST be upper case. Text names and values MUST be
+        /// encoded as UTF-8 octets before percent-encoding them per [RFC3629]
+        /// </summary>
+        /// <param name="value">The value to Url encode</param>
+        /// <returns>Returns a Url encoded string</returns>
+        public static string EncodingPerRFC3986(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            StringBuilder result = new StringBuilder();
+
+            foreach (char symbol in value)
+            {
+                if (unreservedChars.IndexOf(symbol) != -1)
+                {
+                    result.Append(symbol);
+                }
+                else
+                {
+                    result.Append(PercentEncode(symbol.ToString()));
+                    //result.Append('%' + String.Format("{0:X2}", (int)symbol));
+                }
+            }
+
+            return result.ToString();
+        }
+
+        public static string PercentEncode(string value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            var sb = new StringBuilder();
+            foreach (var b in bytes)
+            {
+                // [DC]: Support proper encoding of special characters (\n\r\t\b)
+                if ((b > 7 && b < 11) || b == 13)
+                {
+                    sb.Append(string.Format("%0{0:X}", b));
+                }
+                else
+                {
+                    sb.Append(string.Format("%{0:X}", b));
+                }
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Normalizes the request parameters according to the spec for the signature generation.
+        /// </summary>
+        /// <param name="parameters">The sorted dictionary containing parameters</param>
+        /// <returns>a string representing the normalized parameters</returns>
+        protected static string NormalizeRequestParameters(SortedDictionary<string, string> parameters)
+        {
+            if (parameters.Count == 0)
+            {
+                return "";
+            }
+
+            bool first = true;
+            StringBuilder sb = new StringBuilder();
+            foreach (KeyValuePair<string, string> p in parameters)
+            {
+                if (!first)
+                {
+                    sb.Append("&");
+                }
+                first = false;
+
+                sb.AppendFormat(CultureInfo.InvariantCulture,
+                    "{0}={1}",
+                    EncodingPerRFC3986(p.Key),
+                    EncodingPerRFC3986(p.Value));
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Generate the signature base that is used to produce the signature
+        /// </summary>
+        /// <param name="url">The full url that needs to be signed including its non OAuth url parameters</param>
+        /// <param name="consumerKey">The consumer key</param>
+        /// <param name="token">The token, if available. If not available pass null or an empty string</param>
+        /// <param name="tokenSecret">The token secret, if available. If not available pass null or an empty string</param>
+        /// <param name="httpMethod">The http method used. Must be a valid HTTP method verb (POST,GET,PUT, etc)</param>
+        /// <param name="timeStamp">The OAuth timestamp. Must be a valid timestamp and equal or greater than
+        /// timestamps used in previous requests</param>
+        /// <param name="nonce">The OAuth nonce. A random string uniquely generated for each request</param>
+        /// <param name="signatureType">The signature type.</param>
+        /// <returns>The signature base</returns>
+        public static string GenerateSignatureBase(Uri url, string consumerKey, string token, string tokenSecret,
+            HttpMethod httpMethod, string timeStamp, string nonce, string signatureType)
+        {
+            OAuthParameters parameters = new OAuthParameters()
+            {
+                ConsumerKey = consumerKey,
+                Token = token,
+                TokenSecret = tokenSecret,
+                Timestamp = timeStamp,
+                Nonce = nonce,
+                SignatureMethod = signatureType
+            };
+            return GenerateSignatureBase(url, httpMethod, parameters);
+        }
+
+        /// <summary>
+        /// Generate the signature base that is used to produce the signature
+        /// </summary>
+        /// <param name="url">The full url that needs to be signed including its non OAuth url parameters</param>
+        /// <param name="httpMethod">The http method used. Must be a valid HTTP method verb (POST,GET,PUT, etc)</param>
+        /// <param name="parameters">The OAuth parameters</param>
+        /// <returns>The signature base</returns>
+        public static string GenerateSignatureBase(Uri url, HttpMethod httpMethod, OAuthParameters parameters)
+        {
+            if (string.IsNullOrEmpty(parameters.ConsumerKey))
+            {
+                throw new ArgumentNullException("consumerKey");
+            }
+
+            if (string.IsNullOrEmpty(parameters.SignatureMethod))
+            {
+                throw new ArgumentNullException("signatureMethod");
+            }
+
+            string normalizedUrl = null;
+            string normalizedRequestParameters = null;
+
+            SortedDictionary<string, string> allParameters = GetQueryParameters(url.Query, parameters.BaseProperties);
+
+            if (!allParameters.ContainsKey(OAuthVersionKey))
+            {
+                allParameters.Add(OAuthVersionKey, OAuthVersion);
+            }
+
+            normalizedUrl = string.Format("{0}://{1}", url.Scheme, url.Host);
+            if (!((url.Scheme == "http" && url.Port == 80) || (url.Scheme == "https" && url.Port == 443)))
+            {
+                normalizedUrl += ":" + url.Port;
+            }
+            normalizedUrl += url.AbsolutePath;
+            normalizedRequestParameters = NormalizeRequestParameters(allParameters);
+
+            StringBuilder signatureBase = new StringBuilder();
+            signatureBase.AppendFormat(CultureInfo.InvariantCulture, "{0}&", httpMethod.ToString().ToUpper());
+            signatureBase.AppendFormat(CultureInfo.InvariantCulture, "{0}&", EncodingPerRFC3986(normalizedUrl));
+            signatureBase.AppendFormat(CultureInfo.InvariantCulture, "{0}", EncodingPerRFC3986(normalizedRequestParameters));
+
+            return signatureBase.ToString();
+        }
+
+        /// <summary>
+        /// Generate the signature value based on the given signature base and hash algorithm
+        /// </summary>
+        /// <param name="signatureBase">The signature based as produced by the GenerateSignatureBase method or by any other means</param>
+        /// <param name="hash">The hash algorithm used to perform the hashing. If the hashing algorithm requires initialization or a key it should be set prior to calling this method</param>
+        /// <returns>A base64 string of the hash value</returns>
+        public static string GenerateSignatureUsingHash(string signatureBase, HashAlgorithm hash)
+        {
+            return ComputeHash(hash, signatureBase);
+        }
+
+        /// <summary>
+        /// Generates a signature using the HMAC-SHA1 algorithm
+        /// </summary>
+        /// <param name="url">The full url that needs to be signed including its non OAuth url parameters</param>
+        /// <param name="consumerKey">The consumer key</param>
+        /// <param name="consumerSecret">The consumer seceret</param>
+        /// <param name="token">The token, if available. If not available pass null or an empty string</param>
+        /// <param name="tokenSecret">The token secret, if available. If not available pass null or an empty string</param>
+        /// <param name="httpMethod">The http method used. Must be a valid HTTP method verb (POST,GET,PUT, etc)</param>
+        /// <param name="timeStamp">The OAuth timestamp. Must be a valid timestamp and equal or greater than
+        /// timestamps used in previous requests</param>
+        /// <param name="nonce">The OAuth nonce. A random string uniquely generated for each request</param>
+        /// <returns>A base64 string of the hash value</returns>
+        public static string GenerateSignature(Uri url, string consumerKey, string consumerSecret, string token, string tokenSecret,
+            HttpMethod httpMethod, string timeStamp, string nonce)
+        {
+            return GenerateSignature(url, consumerKey, consumerSecret, token, tokenSecret, httpMethod, timeStamp, nonce, HMACSHA1SignatureType);
+        }
+
+        /// <summary>
+        /// Generates a signature using the specified signatureMethod
+        /// </summary>
+        /// <param name="url">The full url that needs to be signed including its non OAuth url parameters</param>
+        /// <param name="consumerKey">The consumer key</param>
+        /// <param name="consumerSecret">The consumer seceret</param>
+        /// <param name="token">The token, if available. If not available pass null or an empty string</param>
+        /// <param name="tokenSecret">The token secret, if available. If not available pass null or an empty string</param>
+        /// <param name="httpMethod">The http method used. Must be a valid HTTP method verb (POST,GET,PUT, etc)</param>
+        /// <param name="timeStamp">The OAuth timestamp. Must be a valid timestamp and equal or greater than
+        /// timestamps used in previous requests</param>
+        /// <param name="nonce">The OAuth nonce. A random string uniquely generated for each request</param>
+        /// <param name="signatureMethod">The type of signature to use</param>
+        /// <returns>A base64 string of the hash value</returns>
+        public static string GenerateSignature(Uri url, string consumerKey, string consumerSecret, string token,
+            string tokenSecret, HttpMethod httpMethod, string timeStamp, string nonce, string signatureMethod)
+        {
+            OAuthParameters parameters = new OAuthParameters()
+            {
+                ConsumerKey = consumerKey,
+                ConsumerSecret = consumerSecret,
+                Token = token,
+                TokenSecret = tokenSecret,
+                Timestamp = timeStamp,
+                Nonce = nonce,
+                SignatureMethod = signatureMethod
+            };
+            return GenerateSignature(url, httpMethod, parameters);
+        }
+
+        /// <summary>
+        /// Generates a signature using the specified signatureMethod
+        /// </summary>
+        /// <param name="url">The full url that needs to be signed including its non OAuth url parameters</param>
+        /// <param name="httpMethod">The http method used. Must be a valid HTTP method verb (POST,GET,PUT, etc)</param>
+        /// <param name="parameters">The OAuth parameters</param>
+        /// <returns>A base64 string of the hash value</returns>
+        public static string GenerateSignature(Uri url, HttpMethod httpMethod, OAuthParameters parameters)
+        {
+            switch (parameters.SignatureMethod)
+            {
+                case PlainTextSignatureType:
+                    return UrlEncode(string.Format("{0}&{1}", parameters.ConsumerKey, parameters.TokenSecret));
+                case HMACSHA1SignatureType:
+                    string signatureBase = GenerateSignatureBase(url, httpMethod, parameters);
+
+                    HMACSHA1 hmacsha1 = new HMACSHA1();
+                    hmacsha1.Key = Encoding.ASCII.GetBytes(GenerateOAuthSignature(parameters.ConsumerSecret, parameters.TokenSecret));
+
+                    return GenerateSignatureUsingHash(signatureBase, hmacsha1);
+                case RSASHA1SignatureType:
+                    throw new NotImplementedException();
+                default:
+                    throw new ArgumentException("Unknown signature type", "signatureType");
+            }
+        }
+
+        /// <summary>
+        /// oauth_signature is set to the concatenated encoded values of the Consumer Secret and Token Secret,
+        /// separated by a &amp; character (ASCII code 38), even if either secret is empty. This version calls
+        /// GenerateOAuthSignature and encodes the whole signature again
+        /// The result MUST be encoded again.
+        /// </summary>
+        /// <param name="consumerSecret"></param>
+        /// <param name="tokenSecret"></param>
+        /// <returns></returns>
+        public static string GenerateOAuthSignatureEncoded(string consumerSecret, string tokenSecret)
+        {
+            return EncodingPerRFC3986(GenerateOAuthSignature(consumerSecret, tokenSecret));
+        }
+
+        /// <summary>
+        /// oauth_signature is set to the concatenated encoded values of the Consumer Secret and Token Secret,
+        /// separated by a &amp; character (ASCII code 38), even if either secret is empty.
+        /// The result MUST be encoded again.
+        /// </summary>
+        /// <param name="consumerSecret"></param>
+        /// <param name="tokenSecret"></param>
+        /// <returns></returns>
+        public static string GenerateOAuthSignature(string consumerSecret, string tokenSecret)
+        {
+            return string.Format("{0}&{1}",
+                EncodingPerRFC3986(consumerSecret),
+                string.IsNullOrEmpty(tokenSecret) ? "" : EncodingPerRFC3986(tokenSecret));
+        }
+
+        /// <summary>
+        /// Generate the timestamp for the signature
+        /// </summary>
+        /// <returns></returns>
+        public static string GenerateTimeStamp()
+        {
+            // Default implementation of UNIX time of the current UTC time
+            TimeSpan ts = DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0);
+            string timeStamp = ts.TotalSeconds.ToString(CultureInfo.InvariantCulture);
+            // remove any fractions of seconds
+            int pointIndex = timeStamp.IndexOf(".");
+            if (pointIndex != -1)
+            {
+                timeStamp = timeStamp.Substring(0, pointIndex);
+            }
+            return timeStamp;
+        }
+
+        /// <summary>
+        /// Generate a nonce
+        /// </summary>
+        /// <returns></returns>
+        public static string GenerateNonce()
+        {
+            // changed from the original oauth code to use Guid
+            return Guid.NewGuid().ToString().ToLower().Replace("-", "");
+        }
+
+        public static string UrlDecode(string str)
+        {
+            return UrlDecode(str, Encoding.UTF8);
+        }
+
+        public static string UrlDecode(string s, Encoding e)
+        {
+            if (null == s)
+                return null;
+
+            if (s.IndexOf('%') == -1 && s.IndexOf('+') == -1)
+                return s;
+
+            if (e == null)
+                e = Encoding.UTF8;
+
+            long len = s.Length;
+            var bytes = new List <byte>();
+            int xchar;
+            char ch;
+
+            for (int i = 0; i < len; i++)
+            {
+                ch = s[i];
+                if (ch == '%' && i + 2 < len && s[i + 1] != '%')
+                {
+                    if (s[i + 1] == 'u' && i + 5 < len)
+                    {
+                        // unicode hex sequence
+                        xchar = GetChar(s, i + 2, 4);
+                        if (xchar != -1)
+                        {
+                            WriteCharBytes(bytes, (char)xchar, e);
+                            i += 5;
+                        }
+                        else
+                        {
+                            WriteCharBytes(bytes, '%', e);
+                        }
+                    }
+                    else if ((xchar = GetChar(s, i + 1, 2)) != -1)
+                    {
+                        WriteCharBytes(bytes, (char)xchar, e);
+                        i += 2;
+                    }
+                    else
+                    {
+                        WriteCharBytes(bytes, '%', e);
+                    }
+                    continue;
+                }
+
+                if (ch == '+')
+                    WriteCharBytes(bytes, ' ', e);
+                else
+                    WriteCharBytes(bytes, ch, e);
+            }
+
+            byte[] buf = bytes.ToArray ();
+
+            bytes = null;
+            return e.GetString(buf);
+        }
+
+        static void WriteCharBytes(IList buf, char ch, Encoding e)
+        {
+            if (ch > 255)
+            {
+                foreach (byte b in e.GetBytes(new char[] { ch }))
+                    buf.Add(b);
+            }
+            else
+                buf.Add((byte)ch);
+        }
+
+        static int GetChar(string str, int offset, int length)
+        {
+            int val = 0;
+            int end = length + offset;
+            for (int i = offset; i < end; i++)
+            {
+                char c = str[i];
+                if (c > 127)
+                    return -1;
+
+                int current = GetInt((byte)c);
+                if (current == -1)
+                    return -1;
+                val = (val << 4) + current;
+            }
+
+            return val;
+        }
+
+        static int GetInt(byte b)
+        {
+            char c = (char)b;
+            if (c >= '0' && c <= '9')
+                return c - '0';
+
+            if (c >= 'a' && c <= 'f')
+                return c - 'a' + 10;
+
+            if (c >= 'A' && c <= 'F')
+                return c - 'A' + 10;
+
+            return -1;
+        }
+
+        public static string UrlEncode(string str)
+        {
+            return UrlEncode(str, Encoding.UTF8);
+        }
+
+        public static string UrlEncode(string s, Encoding Enc)
+        {
+            if (s == null)
+                return null;
+
+            if (string.IsNullOrEmpty(s))
+                return "";
+
+            bool needEncode = false;
+            int len = s.Length;
+            for (int i = 0; i < len; i++)
+            {
+                char c = s[i];
+                if ((c < '0') || (c < 'A' && c > '9') || (c > 'Z' && c < 'a') || (c > 'z'))
+                {
+                    if (NotEncoded(c))
+                        continue;
+
+                    needEncode = true;
+                    break;
+                }
+            }
+
+            if (!needEncode)
+                return s;
+
+            // avoided GetByteCount call
+            byte[] bytes = new byte[Enc.GetMaxByteCount(s.Length)];
+            int realLen = Enc.GetBytes(s, 0, s.Length, bytes, 0);
+            return Encoding.ASCII.GetString(UrlEncodeToBytes(bytes, 0, realLen));
+        }
+
+        static bool NotEncoded(char c)
+        {
+            return (c == '!' || c == '\'' || c == '(' || c == ')' || c == '*' || c == '-' || c == '.' || c == '_');
+        }
+
+        public static byte[] UrlEncodeToBytes(byte[] bytes, int offset, int count)
+        {
+            if (bytes == null)
+                return null;
+
+            int len = bytes.Length;
+            if (len == 0)
+                return new byte[0];
+
+            if (offset < 0 || offset >= len)
+                throw new ArgumentOutOfRangeException("offset");
+
+            if (count < 0 || count > len - offset)
+                throw new ArgumentOutOfRangeException("count");
+
+            MemoryStream result = new MemoryStream(count);
+            int end = offset + count;
+            for (int i = offset; i < end; i++)
+                UrlEncodeChar((char)bytes[i], result, false);
+
+            return result.ToArray();
+        }
+
+        static char[] hexChars = "0123456789abcdef".ToCharArray();
+
+        static void UrlEncodeChar(char c, Stream result, bool isUnicode)
+        {
+            if (c > 255)
+            {
+                //FIXME: what happens when there is an internal error?
+                //if (!isUnicode)
+                //	throw new ArgumentOutOfRangeException ("c", c, "c must be less than 256");
+                int idx;
+                int i = (int)c;
+
+                result.WriteByte((byte)'%');
+                result.WriteByte((byte)'u');
+                idx = i >> 12;
+                result.WriteByte((byte)hexChars[idx]);
+                idx = (i >> 8) & 0x0F;
+                result.WriteByte((byte)hexChars[idx]);
+                idx = (i >> 4) & 0x0F;
+                result.WriteByte((byte)hexChars[idx]);
+                idx = i & 0x0F;
+                result.WriteByte((byte)hexChars[idx]);
+                return;
+            }
+
+            if (c > ' ' && NotEncoded(c))
+            {
+                result.WriteByte((byte)c);
+                return;
+            }
+            if (c == ' ')
+            {
+                result.WriteByte((byte)'+');
+                return;
+            }
+            if ((c < '0') ||
+                (c < 'A' && c > '9') ||
+                (c > 'Z' && c < 'a') ||
+                (c > 'z'))
+            {
+                if (isUnicode && c > 127)
+                {
+                    result.WriteByte((byte)'%');
+                    result.WriteByte((byte)'u');
+                    result.WriteByte((byte)'0');
+                    result.WriteByte((byte)'0');
+                }
+                else
+                    result.WriteByte((byte)'%');
+
+                int idx = ((int)c) >> 4;
+                result.WriteByte((byte)hexChars[idx]);
+                idx = ((int)c) & 0x0F;
+                result.WriteByte((byte)hexChars[idx]);
+            }
+            else
+                result.WriteByte((byte)c);
+        }
+    }
+}

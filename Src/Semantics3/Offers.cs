@@ -31,10 +31,7 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Newtonsoft.Json;
+using System.Net.Http;
 using Newtonsoft.Json.Linq;
 
 namespace Semantics3
@@ -80,7 +77,7 @@ namespace Semantics3
         
         public JObject get_offers()
         {
-            return run_query("offers", null);
+            return run_query("offers", null, HttpMethod.Get);
         }
     }
 }
