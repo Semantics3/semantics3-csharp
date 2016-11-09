@@ -8,7 +8,13 @@ API documentation can be found at https://www.semantics3.com/docs/
 ## Installation
 
 semantics3-csharp can be installed through the Nuget. Nuget: https://www.nuget.org/packages/Semantics3/.
-Target Frameworks for this library build are .NET Framework 4.0 and .NET Framework 4.5. Change your Target Framework from .NET Framework 4.0 (or 4.5) Client Profile to just .NET Framework 4.0 (or 4.5) in your project properties if need to.
+Target Frameworks for this library build are:
+ * .NET Framework 4.0;
+ * .NET Framework 4.5;
+ * .NET Core 1.0;
+
+Change your Target Framework from .NET Framework 4.0 (or 4.5) Client Profile to just .NET Framework 4.0 (or 4.5) in your project properties if need to.
+
 ```bash
 $ Install-Package Semantics3
 ```
@@ -19,7 +25,6 @@ $ git clone git@github.com:Semantics3/semantics3-csharp.git
 
 ## Requirements
 
-* Google.GData.Client >= 2.2.2.0
 * Newtonsoft.Json >= 5.0.6
 * .NET Framework >= 4.0
 
@@ -91,7 +96,7 @@ Console.Write(hashProducts.ToString());
 // Goto the next 'page'
 int page = 1;
 JObject nextProducts = products.iterate_products();
-while( nextProducts != null ) 
+while( nextProducts != null )
 {
     Console.Write("We are at page"); Console.Write(page);
     Console.Write(nextProducts.ToString());
@@ -228,7 +233,7 @@ End Module
 ```
 
 ## Webhooks
-You can use webhooks to get near-real-time price updates from Semantics3. 
+You can use webhooks to get near-real-time price updates from Semantics3.
 
 ### Creating a webhook
 
@@ -320,7 +325,7 @@ Once you have created a webhook and registered events on it, notifications will 
 
 ### Additional utility methods
 
-| method        | Description           
+| method        | Description
 | ------------- |:-------------
 | `products.get_results_json()`     | returns the result json string from the previous query
 | `products.clear()`                | clears all the fields in the query
@@ -342,17 +347,17 @@ Copyright (c) 2014 Semantics3 Inc.
 ## License
 
     The "MIT" License
-    
+
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
     in the Software without restriction, including without limitation the rights
     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     copies of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
-    
+
     The above copyright notice and this permission notice shall be included in
     all copies or substantial portions of the Software.
-    
+
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
     OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
