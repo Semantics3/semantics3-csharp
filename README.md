@@ -29,8 +29,7 @@ In order to use the client, you must have both an API key and an API secret. To 
 and secret, you need to first create an account at
 https://www.semantics3.com/
 
-You can access your API access credentials from the user dashboard at
-https://www.semantics3.com/dashboard/applications
+You can access your API access credentials from the user dashboard at https://dashboard.semantics3.com.
 
 ### Setup Work
 
