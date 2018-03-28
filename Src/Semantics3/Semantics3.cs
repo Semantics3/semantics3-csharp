@@ -82,6 +82,7 @@ namespace Semantics3
             // If method is GET, then send parameters as part of URL
             if (method == "GET")
             {
+
                 url = url + "?q=" + System.Web.HttpUtility.UrlEncode(parameters);
             }
 
